@@ -611,61 +611,56 @@ class Script(scripts.Script):
     def title(self):
         return "Prompt gallery"
 
-    def ui(self, is_img2img):
-        with gr.Group():
-            with gr.Column():
-                label_avatar = gr.Label("Upload avatars config")
-                avatar_dict = gr.File(label="Upload avatar prompt inputs", type='bytes')
-        
-        # copy_from_app_button = gr.Button("Copy From Prompt Preview")
+def ui(self, is_img2img):
+    with gr.Group():
+        with gr.Column():
+            label_avatar = gr.Label("Upload avatars config")
+            avatar_dict = gr.File(label="Upload avatar prompt inputs", type='filepath')
 
-        with gr.Group():
-            with gr.Column(visible=False) as avatar_col:
-                label_presets = gr.Label("Presets")
-                dropdown = gr.Dropdown(label="Choose avatar", choices=[""], value="", type="value", elem_id="dropdown")
-                dropdown.save_to_config = True
-                with gr.Row():
-                    checkbox_iterate = gr.Checkbox(label="Iterate seed every line", value=False)
-                    skip_exist = gr.Checkbox(value=True, label="skip exist")
-                default_negative = gr.Textbox(label="default_negative", lines=1)
-                default_positive = gr.Textbox(label="default_positive", lines=1)
-                prompt_dict = gr.File(label="Upload prompt dictionary", type='bytes')
-                with gr.Row(visible = False) as save_prompts:
-                    open_button = gr.Button("Open outputs directory")
-                    export_button = gr.Button("Export to WebUI style")
+    with gr.Group():
+        with gr.Column(visible=False) as avatar_col:
+            label_presets = gr.Label("Presets")
+            dropdown = gr.Dropdown(label="Choose avatar", choices=[""], value="", type="value", elem_id="dropdown")
+            dropdown.save_to_config = True
+            with gr.Row():
+                checkbox_iterate = gr.Checkbox(label="Iterate seed every line", value=False)
+                skip_exist = gr.Checkbox(value=True, label="Skip exist")
+            default_negative = gr.Textbox(label="Default negative prompts", lines=1)
+            default_positive = gr.Textbox(label="Default positive prompts", lines=1)
+            prompt_dict = gr.File(label="Upload prompt dictionary", type='filepath')
+            with gr.Row(visible=False) as save_prompts:
+                open_button = gr.Button("Open outputs directory")
+                export_button = gr.Button("Export to WebUI style")
             prompt_display = gr.Textbox(label="List of prompt inputs", lines=1)
 
-        
-        prompt_dict.change(fn=load_prompt, inputs=[prompt_dict, default_positive, default_negative, dropdown, skip_exist], outputs=[prompt_display, save_prompts])
-        open_button.click(fn=lambda: open_folder(OUTPATH_SAMPLES), inputs=[], outputs=[])
-        export_button.click(fn=save_styles, inputs=[], outputs=[])
+    with gr.Group(visible=False) as qc_widgets:
+        label_preview = gr.Label("QC preview")
+        with gr.Row():
+            qc_refresh = gr.Button("QC scan")
+            preview_dropdown = gr.Dropdown(label="Select prompts", choices=[""], value="", type="value", elem_id="dropdown")
+        preview_gallery = gr.Gallery(label='Output', show_label=False, elem_id=f"preview_gallery", columns=4)
+        with gr.Row():
+            qc_show = gr.Button("Show pics")
+            qc_select = gr.Button("Select")
+            rename_button = gr.Button("Auto rename")
+        selected_img = gr.Image(label="Selected", show_label=False, source="upload", interactive=True, type="pil", height=480)
 
-        with gr.Group(visible=False) as qc_widgets:
-            label_preview = gr.Label("QC preview")
-            with gr.Row():
-                qc_refresh = gr.Button("QC scan")
-                preview_dropdown = gr.Dropdown(label="Select prompts", choices=[""], value="", type="value", elem_id="dropdown")
-            preview_gallery = gr.Gallery(label='Output', show_label=False, elem_id=f"preview_gallery").style(grid=4)
-            qc_refresh.click(fn=scan_outputs, inputs=[dropdown], outputs=preview_dropdown)
-            with gr.Row():
-                qc_show = gr.Button(f"Show pics")
-                qc_select = gr.Button(f"Select")
-                rename_button = gr.Button("Auto rename")
-            selected_img = gr.Image(label="Selected",show_label=False, source="upload", interactive=True, type="pil").style(height=480)
-        qc_show.click(fn=update_gallery, inputs=[preview_dropdown, dropdown], outputs=preview_gallery)
-        qc_select.click(
-                    fn=lambda x: image_url(x),
-                    _js="extract_image_from_gallery",
-                    inputs=[preview_gallery],
-                    outputs=[selected_img],
-        )
-            # qc_select.click(fn=select_picture, inputs=[dropdown, preview_dropdown, preview_gallery], outputs=[])
-        dropdown.change(fn=dropdown_change, inputs=[], outputs=[prompt_dict, prompt_display])
-        rename_button.click(fn=rename_preview, inputs=[dropdown], outputs=[])
-            # qc_select.click(fn=scan_outputs, inputs=[], outputs=[preview_dropdown])
+    prompt_dict.change(fn=load_prompt, inputs=[prompt_dict, default_positive, default_negative, dropdown, skip_exist], outputs=[prompt_display, save_prompts])
+    open_button.click(fn=lambda: open_folder(OUTPATH_SAMPLES), inputs=[], outputs=[])
+    export_button.click(fn=save_styles, inputs=[], outputs=[])
+    qc_refresh.click(fn=scan_outputs, inputs=[dropdown], outputs=preview_dropdown)
+    qc_show.click(fn=update_gallery, inputs=[preview_dropdown, dropdown], outputs=preview_gallery)
+    qc_select.click(
+        fn=lambda x: image_url(x),
+        _js="extract_image_from_gallery",
+        inputs=[preview_gallery],
+        outputs=[selected_img],
+    )
+    dropdown.change(fn=dropdown_change, inputs=[], outputs=[prompt_dict, prompt_display])
+    rename_button.click(fn=rename_preview, inputs=[dropdown], outputs=[])
+    avatar_dict.change(fn=load_avartar, inputs=[avatar_dict], outputs=[dropdown, avatar_col, qc_widgets])
 
-        avatar_dict.change(fn=load_avartar, inputs=[avatar_dict], outputs=[dropdown, avatar_col, qc_widgets])
-        return [checkbox_iterate, avatar_dict, prompt_dict, default_negative, default_positive, dropdown, prompt_display, rename_button, label_avatar, open_button, export_button, skip_exist, label_presets, label_preview, preview_dropdown, preview_gallery, qc_select, qc_refresh, qc_show, selected_img]
+    return [checkbox_iterate, avatar_dict, prompt_dict, default_negative, default_positive, dropdown, prompt_display, rename_button, label_avatar, open_button, export_button, skip_exist, label_presets, label_preview, preview_dropdown, preview_gallery, qc_select, qc_refresh, qc_show, selected_img]
 
     def run(self, p, checkbox_iterate, avatar_dict, prompt_dict, default_negative, default_positive, dropdown, prompt_display, rename_button, label_avatar, open_button, export_button, skip_exist, label_presets, label_preview, preview_dropdown, preview_gallery, qc_select, qc_refresh, qc_show, selected_img):
         global pg_templates
